@@ -1,13 +1,20 @@
 """Unit tests for nix_adapter.firewall."""
 
+import os
+import tempfile
 import unittest
 from unittest.mock import MagicMock
 
 from nix_adapter.exceptions import Conflict
+from nix_adapter.files import Files
 from nix_adapter.firewall import (
+    FirewalldBackend,
+    UfwBackend,
+    canonical_rule,
     check_kernel_policy,
     check_kernel_rule,
     format_port_range,
+    hotspot_firewall_rules,
     parse_ufw_status,
 )
 
@@ -81,8 +88,62 @@ To                         Action      From
     def test_check_kernel_policy(self):
         mock_runner = MagicMock()
         mock_runner.run.return_value.returncode = 0
-        mock_runner.run.return_value.stdout = "-P INPUT DROP\n-P OUTPUT ACCEPT\n-P FORWARD DROP\n"
+        mock_runner.run.return_value.stdout = (
+            "-P INPUT DROP\n-P OUTPUT ACCEPT\n-P FORWARD DROP\n"
+        )
         self.assertTrue(check_kernel_policy(runner=mock_runner))
+
+    def test_canonical_rule_and_hotspot_rules(self):
+        rules = hotspot_firewall_rules("wifi0", "eth0", "192.0.2.1/24")
+        self.assertEqual(len(rules), 4)
+
+        r0 = canonical_rule(rules[0][0])
+        r0_parsed = canonical_rule(
+            "ufw allow in on wifi0 to any port 67 proto udp".split()
+        )
+        self.assertEqual(r0, r0_parsed)
+
+        r1 = canonical_rule(rules[1][0])
+        r1_parsed = canonical_rule(
+            "ufw allow in on wifi0 from 192.0.2.0/24 to 192.0.2.1/32 port 53 proto udp".split()
+        )
+        self.assertEqual(r1, r1_parsed)
+
+    def test_firewalld_backend_not_implemented(self):
+        backend = FirewalldBackend()
+        with self.assertRaises(NotImplementedError):
+            backend.snapshot()
+
+    def test_ufw_backend_snapshot_and_preflight(self):
+        mock_runner = MagicMock()
+        mock_runner.unit.side_effect = lambda name: {
+            "nftables.service": {"ActiveState": "inactive", "UnitFileState": "disabled"},
+            "ufw.service": {
+                "LoadState": "loaded",
+                "ActiveState": "active",
+                "UnitFileState": "enabled",
+            },
+        }.get(name, {})
+        mock_runner.run.return_value.stdout = """Status: active
+Logging: on (low)
+Default: deny (incoming), allow (outgoing), disabled (routed)
+New profiles: skip
+"""
+        with tempfile.TemporaryDirectory() as d:
+            files = Files(root=d, identity=(os.getuid(), os.getgid()))
+            backend = UfwBackend(runner=mock_runner, files=files)
+            snap = backend.snapshot()
+            self.assertTrue(snap["active"])
+
+            # Preflight without installed
+            backend.preflight(installed=False)
+
+            # Preflight with installed checks default files
+            files.write(
+                "/etc/default/ufw",
+                'IPV6=yes\nMANAGE_BUILTINS=no\nDEFAULT_INPUT_POLICY="DROP"\nDEFAULT_OUTPUT_POLICY="ACCEPT"\nDEFAULT_FORWARD_POLICY="DROP"\n',
+            )
+            backend.preflight(installed=True)
 
 
 if __name__ == "__main__":

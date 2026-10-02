@@ -106,8 +106,8 @@ def ini(text: str) -> dict[tuple[str, str], str]:
 
 
 class Files:
-    def __init__(self, root: Path = Path("/"), identity: tuple[int, int] = (0, 0)):
-        self.root = root
+    def __init__(self, root: Path | str = Path("/"), identity: tuple[int, int] = (0, 0)):
+        self.root = Path(root)
         self.identity = identity
 
     def path(self, name: str, symlink_leaf: bool = False) -> Path:
