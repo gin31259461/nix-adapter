@@ -292,3 +292,93 @@ class HotspotManager:
                 address=self.desired["address"],
                 on_action=on_action,
             )
+
+
+def firewall_rules(desired: dict[str, Any]) -> list[tuple[list[str], list[str]]]:
+    """Return scoped UFW commands and their corresponding IPv4 kernel rules."""
+    from .firewall import hotspot_firewall_rules
+
+    return hotspot_firewall_rules(
+        interface=desired["interface"],
+        uplink=desired["uplink"],
+        address=desired["address"],
+    )
+
+
+def converge_firewall(system: Any) -> None:
+    desired = system.desired.get("hotspot") if hasattr(system, "desired") else None
+    if desired is None:
+        return
+    from .firewall import UfwBackend
+
+    backend = getattr(system, "firewall_backend", None) or UfwBackend(
+        runner=getattr(system, "native", None)
+        or getattr(system, "runner", None)
+        or (system if hasattr(system, "run") else None),
+        files=getattr(system, "files", None),
+    )
+
+    def on_action() -> None:
+        if hasattr(system, "actions"):
+            system.actions += 1
+
+    backend.converge_hotspot_rules(
+        interface=desired["interface"],
+        uplink=desired["uplink"],
+        address=desired["address"],
+        on_action=on_action,
+    )
+
+
+class Hotspot:
+    def __init__(self, system: Any, manager: HotspotManager | None = None):
+        self.system = system
+        self.desired = (
+            system.desired.get("hotspot", {}) if hasattr(system, "desired") else {}
+        )
+        if manager is not None:
+            self.manager = manager
+        else:
+            runner = (
+                getattr(system, "native", None)
+                or getattr(system, "runner", None)
+                or (system if hasattr(system, "run") else None)
+            )
+            files = getattr(system, "files", None)
+            self.manager = HotspotManager(
+                desired=self.desired,
+                runner=runner,
+                files=files,
+            )
+
+    @property
+    def uuid(self) -> str | None:
+        return self.manager.uuid
+
+    @uuid.setter
+    def uuid(self, value: str | None) -> None:
+        self.manager.uuid = value
+
+    def read(self, field: str) -> str:
+        return self.manager.read_property(field)
+
+    def properties(self) -> dict[str, str]:
+        return self.manager.properties()
+
+    def selected(self) -> bool:
+        return self.manager.is_selected()
+
+    def active(self) -> bool:
+        return self.manager.is_active()
+
+    def preflight(self, installed: bool = False) -> bool:
+        ready_unit = getattr(self.system, "ready_unit", None)
+        return self.manager.preflight(ready_unit_fn=ready_unit)
+
+    def converge(self) -> None:
+        def on_action() -> None:
+            if hasattr(self.system, "actions"):
+                self.system.actions += 1
+
+        ready_unit = getattr(self.system, "ready_unit", None)
+        self.manager.converge(on_action=on_action, ready_unit_fn=ready_unit)

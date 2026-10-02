@@ -501,3 +501,76 @@ class FirewalldBackend(FirewallBackend):
         on_action: Callable[[], None] | None = None,
     ) -> None:
         raise NotImplementedError("FirewalldBackend is not yet implemented (TODO)")
+
+
+# Maintain backwards compatibility for callers/tests importing status
+status = parse_ufw_status
+
+
+def rule_port(rule: dict[str, Any]) -> str:
+    return format_port_range(rule["fromPort"], rule.get("toPort"))
+
+
+class Firewall:
+    """High-level firewall adapter managing system service rules and hotspot rules."""
+
+    def __init__(self, system: Any, backend: FirewallBackend | None = None):
+        self.system = system
+        self.files = getattr(system, "files", None)
+        self.desired = (
+            system.desired.get("firewall", {}) if hasattr(system, "desired") else {}
+        )
+        self.backend: FirewallBackend = backend or UfwBackend(
+            runner=getattr(system, "native", None)
+            or getattr(system, "runner", None)
+            or (system if hasattr(system, "run") else None),
+            files=self.files,
+            systemd=getattr(system, "systemd", None),
+            ready_unit_fn=getattr(system, "ready_unit", None),
+        )
+
+    def run(self, *args: Any, **kwargs: Any) -> Any:
+        if hasattr(self.system, "run"):
+            return self.system.run(*args, **kwargs)
+        runner = getattr(self.backend, "runner", None)
+        if runner and hasattr(runner, "run"):
+            return runner.run(*args, **kwargs)
+        raise RuntimeError("No runner available")
+
+    def snapshot(self) -> dict[str, Any]:
+        return self.backend.snapshot()
+
+    def preflight(self, installed: bool = False) -> None:
+        return self.backend.preflight(installed)
+
+    def kernel_rule(self, rule: dict[str, Any], v6: bool = False) -> bool:
+        if isinstance(self.backend, UfwBackend):
+            return self.backend.kernel_rule(rule, v6)
+        return False
+
+    def kernel_policy(self) -> bool:
+        if isinstance(self.backend, UfwBackend):
+            return self.backend.kernel_policy()
+        return True
+
+    def converge(self) -> None:
+        def on_action() -> None:
+            if hasattr(self.system, "actions"):
+                self.system.actions += 1
+
+        def service_ready() -> None:
+            if hasattr(self.system, "service"):
+                self.system.service("ufw.service", "firewall")
+
+        self.backend.converge_service_rules(
+            rules=self.desired.get("rules", []),
+            logging=self.desired.get("logging", "low"),
+            profiles="skip",
+            on_action=on_action,
+            service_ready_fn=service_ready,
+        )
+        from .hotspot import converge_firewall
+
+        converge_firewall(self.system)
+        if self.files and hasattr(self.files, "clear"):
+            self.files.clear("firewall")

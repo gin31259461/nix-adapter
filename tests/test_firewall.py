@@ -145,6 +145,19 @@ New profiles: skip
             )
             backend.preflight(installed=True)
 
+    def test_firewall_adapter(self):
+        from nix_adapter.firewall import Firewall
+
+        mock_runner = MagicMock()
+        mock_runner.run.return_value.stdout = "Status: inactive\n"
+        mock_system = MagicMock()
+        mock_system.native = mock_runner
+        mock_system.desired = {"firewall": {"rules": [], "logging": "low"}}
+        mock_system.files = MagicMock()
+        fw = Firewall(mock_system)
+        snap = fw.snapshot()
+        self.assertFalse(snap["active"])
+
 
 if __name__ == "__main__":
     unittest.main()

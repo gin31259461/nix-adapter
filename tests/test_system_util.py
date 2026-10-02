@@ -7,15 +7,55 @@ from unittest.mock import MagicMock
 from nix_adapter.exceptions import Conflict
 from nix_adapter.system import (
     check_discard_support,
+    ensure_subordinate_range,
     get_hostname,
     get_timezone,
     is_ntp_synchronized,
+    ranges_overlap,
     set_hostname,
     set_timezone,
 )
 
 
 class SystemUtilTests(unittest.TestCase):
+    def test_ranges_overlap(self):
+        r1 = {"start": 100000, "count": 65536}
+        r2 = {"start": 200000, "count": 65536}
+        self.assertFalse(ranges_overlap(r1, r2))
+        self.assertFalse(ranges_overlap(r2, r1))
+
+        # Overlapping ranges
+        r3 = {"start": 150000, "count": 20000}
+        self.assertTrue(ranges_overlap(r1, r3))
+        self.assertTrue(ranges_overlap(r3, r1))
+
+    def test_ensure_subordinate_range(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = tempfile.mktemp(dir=d)
+            # Create fresh
+            ensure_subordinate_range(path, "alice", {"start": 100000, "count": 65536})
+            with open(path) as f:
+                content = f.read()
+            self.assertEqual(content, "alice:100000:65536\n")
+
+            # Add non-overlapping user
+            ensure_subordinate_range(path, "bob", {"start": 200000, "count": 65536})
+            with open(path) as f:
+                lines = f.read().splitlines()
+            self.assertEqual(len(lines), 2)
+            self.assertEqual(lines[0], "alice:100000:65536")
+            self.assertEqual(lines[1], "bob:200000:65536")
+
+            # Overlapping allocation fails
+            with self.assertRaises(Conflict):
+                ensure_subordinate_range(path, "charlie", {"start": 150000, "count": 10000})
+
+            # Update existing user
+            ensure_subordinate_range(path, "alice", {"start": 100000, "count": 32768})
+            with open(path) as f:
+                lines = f.read().splitlines()
+            self.assertEqual(lines[0], "alice:100000:32768")
+
     def test_get_and_set_timezone(self):
         mock_runner = MagicMock()
         mock_runner.run.return_value.stdout = "Timezone=UTC\nLocalRTC=no\n"

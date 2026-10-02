@@ -4,6 +4,7 @@ from .cli import run_adapter_cli
 from .exceptions import Conflict, NotReady
 from .files import Files, assignments, ini, locale_gen, replace_keys
 from .firewall import (
+    Firewall,
     FirewallBackend,
     FirewalldBackend,
     UfwBackend,
@@ -13,11 +14,15 @@ from .firewall import (
     format_port_range,
     hotspot_firewall_rules,
     parse_ufw_status,
+    status,
 )
 from .hotspot import (
+    Hotspot,
     HotspotManager,
     check_hotspot_prerequisites,
+    converge_firewall,
     find_hotspot_connection_uuid,
+    firewall_rules,
     hotspot_properties,
     is_hotspot_active,
     validate_hotspot_address,
@@ -37,9 +42,11 @@ from .base import BaseAdapter
 from .service import BaseServiceAdapter
 from .system import (
     check_discard_support,
+    ensure_subordinate_range,
     get_hostname,
     get_timezone,
     is_ntp_synchronized,
+    ranges_overlap,
     set_hostname,
     set_timezone,
 )
@@ -56,8 +63,10 @@ __all__ = [
     "FakeNative",
     "FakeProcess",
     "Files",
+    "Firewall",
     "FirewallBackend",
     "FirewalldBackend",
+    "Hotspot",
     "HotspotManager",
     "Native",
     "NotReady",
@@ -72,10 +81,13 @@ __all__ = [
     "check_hotspot_prerequisites",
     "check_kernel_policy",
     "check_kernel_rule",
+    "converge_firewall",
     "directory_fd",
     "dump_toml",
     "ensure_directory",
+    "ensure_subordinate_range",
     "find_hotspot_connection_uuid",
+    "firewall_rules",
     "format_port_range",
     "get_hostname",
     "get_timezone",
@@ -88,6 +100,7 @@ __all__ = [
     "operation_lock",
     "parse_toml",
     "parse_ufw_status",
+    "ranges_overlap",
     "read_managed",
     "read_toml",
     "regular_file",
@@ -96,6 +109,7 @@ __all__ = [
     "run_adapter_cli",
     "set_hostname",
     "set_timezone",
+    "status",
     "validate_hotspot_address",
     "write_toml",
 ]

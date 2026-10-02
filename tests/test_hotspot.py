@@ -179,6 +179,35 @@ class HotspotTests(unittest.TestCase):
         self.assertTrue(manager.preflight())
         manager.converge()
 
+    def test_firewall_rules(self):
+        from nix_adapter.hotspot import firewall_rules
+
+        desired = {
+            "interface": "wlan0",
+            "uplink": "eth0",
+            "address": "192.0.2.1/24",
+        }
+        rules = firewall_rules(desired)
+        self.assertGreater(len(rules), 0)
+
+    def test_hotspot_adapter(self):
+        from nix_adapter.hotspot import Hotspot
+
+        mock_system = MagicMock()
+        mock_system.desired = {
+            "hotspot": {
+                "interface": "wlan0",
+                "ssid": "TestAP",
+                "band": "a",
+                "channel": 36,
+                "address": "192.0.2.1/24",
+                "autoconnect": True,
+                "ipv6": "shared",
+            }
+        }
+        hs = Hotspot(mock_system)
+        self.assertIsNotNone(hs.manager)
+
 
 if __name__ == "__main__":
     unittest.main()

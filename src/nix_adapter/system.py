@@ -93,3 +93,54 @@ def check_discard_support(runner: Native | None = None) -> bool:
     if not walk(devices):
         raise Conflict("no mounted discard-capable device was found")
     return True
+
+
+def ranges_overlap(left: dict[str, int], right: dict[str, int]) -> bool:
+    """Return whether two [start, start + count) ranges overlap."""
+    left_end = left["start"] + left["count"] - 1
+    right_end = right["start"] + right["count"] - 1
+    return left["start"] <= right_end and right["start"] <= left_end
+
+
+def ensure_subordinate_range(
+    path: Path | str,
+    user: str,
+    desired: dict[str, int],
+    uid: int | None = None,
+    gid: int | None = None,
+) -> None:
+    """Ensure a user has an allocated range in /etc/subuid or /etc/subgid without overlaps."""
+    from .io import atomic_write, read_managed
+
+    p = Path(path)
+    lines = read_managed(p).splitlines() if p.exists() else []
+    user_indices: list[int] = []
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        fields = stripped.split(":")
+        if len(fields) != 3 or not fields[1].isdigit() or not fields[2].isdigit():
+            raise Conflict(f"invalid subordinate ID allocation in {p}")
+        existing_user, start_text, count_text = fields
+        if existing_user == user:
+            user_indices.append(index)
+            continue
+        existing = {"start": int(start_text), "count": int(count_text)}
+        if ranges_overlap(desired, existing):
+            raise Conflict(
+                f"desired subordinate ID range for {user} overlaps {existing_user} in {p}"
+            )
+
+    if len(user_indices) > 1:
+        raise Conflict(
+            f"multiple subordinate ID allocations exist for {user} in {p}"
+        )
+    desired_line = f"{user}:{desired['start']}:{desired['count']}"
+    if user_indices:
+        lines[user_indices[0]] = desired_line
+    else:
+        lines.append(desired_line)
+    target_uid = os.geteuid() if uid is None else uid
+    target_gid = os.getegid() if gid is None else gid
+    atomic_write(p, "\n".join(lines) + "\n", mode=0o644, uid=target_uid, gid=target_gid)
