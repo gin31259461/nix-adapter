@@ -44,6 +44,7 @@ from .system import (
     set_timezone,
 )
 from .systemd import Systemd
+from .testing import FakeNative, FakeProcess
 from .toml import dump_toml, parse_toml, read_toml, write_toml
 
 __version__ = "0.3.0"
@@ -52,6 +53,8 @@ __all__ = [
     "BaseAdapter",
     "BaseServiceAdapter",
     "Conflict",
+    "FakeNative",
+    "FakeProcess",
     "Files",
     "FirewallBackend",
     "FirewalldBackend",

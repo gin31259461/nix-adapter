@@ -24,16 +24,6 @@ class BaseServiceAdapter(BaseAdapter):
     ):
         super().__init__(desired=desired, root=root, runner=runner, files=files)
 
-    def path(self, key: str) -> Path:
-        value = self.desired.get(key)
-        if (
-            not isinstance(value, str)
-            or not value.startswith("/")
-            or ".." in Path(value).parts
-        ):
-            raise Conflict(f"invalid manifest path for {key}")
-        return self.root / value.lstrip("/")
-
     def validate_file(self, key: str, mode_mask: int = 0o022) -> Path:
         path = self.path(key)
         if path.is_symlink() or not path.is_file():
