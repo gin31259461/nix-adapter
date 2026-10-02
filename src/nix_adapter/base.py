@@ -61,8 +61,8 @@ class BaseAdapter:
         """Alias for ready_unit."""
         return self.ready_unit(name)
 
-    def path(self, key: str, default: str | None = None) -> Path:
-        """Resolve a declared path relative to root, checking paths dictionary or direct keys."""
+    def path_str(self, key: str, default: str | None = None) -> str:
+        """Resolve a declared path string, checking paths dictionary or direct keys."""
         value = None
         paths = self.desired.get("paths")
         if isinstance(paths, dict):
@@ -77,7 +77,12 @@ class BaseAdapter:
             or ".." in Path(value).parts
         ):
             raise Conflict(f"invalid manifest path for {key}")
-        return self.root / value.lstrip("/")
+        return value
+
+    def path(self, key: str, default: str | None = None) -> Path:
+        """Resolve a declared path relative to root, checking paths dictionary or direct keys."""
+        raw = self.path_str(key, default)
+        return self.root / raw.lstrip("/")
 
     def write(
         self, path: str | Path, text: str, action: str, mode: int = 0o644
