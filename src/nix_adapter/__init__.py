@@ -44,7 +44,7 @@ from .system import (
     set_timezone,
 )
 from .systemd import Systemd
-from .toml import parse_toml, read_toml
+from .toml import dump_toml, parse_toml, read_toml, write_toml
 
 __version__ = "0.3.0"
 
@@ -70,6 +70,7 @@ __all__ = [
     "check_kernel_policy",
     "check_kernel_rule",
     "directory_fd",
+    "dump_toml",
     "ensure_directory",
     "find_hotspot_connection_uuid",
     "format_port_range",
@@ -93,4 +94,5 @@ __all__ = [
     "set_hostname",
     "set_timezone",
     "validate_hotspot_address",
+    "write_toml",
 ]
