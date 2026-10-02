@@ -62,6 +62,11 @@ class IoTests(unittest.TestCase):
             self.assertTrue(removed)
             self.assertEqual(read_managed(target), "")
 
+            # Non-existent parent directory returns False / empty string
+            non_existent = Path(directory) / "no_such_dir" / "file.txt"
+            self.assertFalse(remove_managed_file(non_existent))
+            self.assertEqual(read_managed(non_existent), "")
+
 
 if __name__ == "__main__":
     unittest.main()

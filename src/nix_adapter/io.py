@@ -37,6 +37,8 @@ def directory_fd(path: Path, *, create: bool = False):
                     os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
                     dir_fd=fd,
                 )
+            except FileNotFoundError:
+                raise
             except OSError as error:
                 raise Conflict(f"failed to open directory {part}: {error}") from None
             os.close(fd)
