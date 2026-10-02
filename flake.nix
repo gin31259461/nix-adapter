@@ -23,10 +23,14 @@
           pkgs = nixpkgs.legacyPackages.${system};
           nix-adapter = pkgs.python3Packages.buildPythonPackage {
             pname = "nix-adapter";
-            version = "0.1.0";
+            version = "0.2.0";
             src = ./.;
             format = "pyproject";
             nativeBuildInputs = [ pkgs.python3Packages.flit-core ];
+            propagatedBuildInputs = [
+              pkgs.python3Packages.rich
+              pkgs.python3Packages.tomli-w
+            ];
             checkPhase = ''
               python -m unittest discover -s tests
             '';
