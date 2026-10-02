@@ -1,4 +1,4 @@
-"""Base adapter for system and service reconciliation."""
+"""Base service adapter for systemd service and identity reconciliation."""
 
 from __future__ import annotations
 import os
@@ -6,22 +6,23 @@ from pathlib import Path
 import stat
 from typing import Any
 
+from .base import BaseAdapter
 from .exceptions import Conflict
+from .files import Files
 from .native import Native
-from .systemd import Systemd
 
 
-class BaseServiceAdapter:
+class BaseServiceAdapter(BaseAdapter):
+    """Adapter specialized for single-service lifecycle, account, and unit file management."""
+
     def __init__(
         self,
         desired: dict[str, Any],
-        root: Path = Path("/"),
+        root: Path | str = Path("/"),
         runner: Native | None = None,
+        files: Files | None = None,
     ):
-        self.desired = desired
-        self.root = root
-        self.runner = runner or Native()
-        self.systemd = Systemd(self.runner)
+        super().__init__(desired=desired, root=root, runner=runner, files=files)
 
     def path(self, key: str) -> Path:
         value = self.desired.get(key)

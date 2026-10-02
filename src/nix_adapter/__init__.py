@@ -33,6 +33,7 @@ from .io import (
 from .lock import operation_lock
 from .native import Native
 from .progress import Progress, Task
+from .base import BaseAdapter
 from .service import BaseServiceAdapter
 from .system import (
     check_discard_support,
@@ -48,6 +49,7 @@ from .toml import parse_toml, read_toml
 __version__ = "0.3.0"
 
 __all__ = [
+    "BaseAdapter",
     "BaseServiceAdapter",
     "Conflict",
     "Files",

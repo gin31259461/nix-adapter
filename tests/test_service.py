@@ -76,6 +76,40 @@ class ServiceAdapterTests(unittest.TestCase):
             "mysvc",
         )
 
+    def test_base_adapter_contract(self):
+        import os
+        from nix_adapter.base import BaseAdapter
+        from nix_adapter.files import Files
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            files = Files(root=root, identity=(os.getuid(), os.getgid()))
+            adapter = BaseAdapter(desired={"foo": "bar"}, root=root, files=files)
+            self.assertEqual(adapter.desired, {"foo": "bar"})
+            self.assertEqual(adapter.root, root)
+            self.assertIs(adapter.native, adapter.runner)
+
+            # Test write helper
+            written = adapter.write("/etc/sample.conf", "content\n", "sample")
+            self.assertTrue(written)
+            self.assertEqual(adapter.updates, 1)
+            self.assertTrue(adapter.files.pending("sample"))
+
+            # Idempotent write
+            written_again = adapter.write("/etc/sample.conf", "content\n", "sample")
+            self.assertFalse(written_again)
+            self.assertEqual(adapter.updates, 1)
+
+            # Test native setter
+            mock_runner = MagicMock()
+            adapter.native = mock_runner
+            self.assertIs(adapter.native, mock_runner)
+            self.assertIs(adapter.runner, mock_runner)
+
+            # Preflight and converge default stubs
+            self.assertIsNone(adapter.preflight())
+            self.assertIsNone(adapter.converge())
+
 
 if __name__ == "__main__":
     unittest.main()
