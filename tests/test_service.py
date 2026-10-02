@@ -3,6 +3,7 @@
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import MagicMock
 
 from nix_adapter.exceptions import Conflict
 from nix_adapter.service import BaseServiceAdapter
@@ -32,6 +33,48 @@ class ServiceAdapterTests(unittest.TestCase):
             file_path.chmod(0o666)
             with self.assertRaises(Conflict):
                 adapter.validate_file("config")
+
+    def test_write_unit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            unit_path = root / "etc/systemd/system/test.service"
+            receipt = root / "var/lib/test.ready"
+            pending = root / "var/lib/test.pending"
+            receipt.parent.mkdir(parents=True)
+
+            adapter = BaseServiceAdapter(desired={}, root=root)
+            # First write: creates unit, touches pending, returns True
+            changed = adapter.write_unit(unit_path, "[Service]\nExecStart=/bin/test\n", receipt, pending)
+            self.assertTrue(changed)
+            self.assertTrue(unit_path.exists())
+            self.assertTrue(pending.exists())
+
+            # Mark ready
+            receipt.touch()
+
+            # Second write with same content: returns False
+            changed_again = adapter.write_unit(unit_path, "[Service]\nExecStart=/bin/test\n", receipt, pending)
+            self.assertFalse(changed_again)
+
+    def test_ensure_system_account(self):
+        mock_runner = MagicMock()
+        mock_runner.run.return_value.returncode = 1  # user and group don't exist
+
+        adapter = BaseServiceAdapter(desired={}, runner=mock_runner)
+        adapter.ensure_system_account("mysvc", create=True)
+
+        mock_runner.run.assert_any_call("groupadd", "--system", "mysvc")
+        mock_runner.run.assert_any_call(
+            "useradd",
+            "--system",
+            "--gid",
+            "mysvc",
+            "--home-dir",
+            "/var/lib/mysvc",
+            "--shell",
+            "/usr/bin/nologin",
+            "mysvc",
+        )
 
 
 if __name__ == "__main__":

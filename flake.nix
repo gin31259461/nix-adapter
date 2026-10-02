@@ -23,13 +23,12 @@
           pkgs = nixpkgs.legacyPackages.${system};
           nix-adapter = pkgs.python3Packages.buildPythonPackage {
             pname = "nix-adapter";
-            version = "0.2.0";
+            version = "0.3.0";
             src = ./.;
             format = "pyproject";
             nativeBuildInputs = [ pkgs.python3Packages.flit-core ];
             propagatedBuildInputs = [
               pkgs.python3Packages.rich
-              pkgs.python3Packages.tomli-w
             ];
             checkPhase = ''
               python -m unittest discover -s tests
@@ -47,9 +46,25 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          python = self.packages.${system}.adapterPython;
         in
         {
           package = self.packages.${system}.default;
+
+          source-format = pkgs.runCommand "nix-adapter-source-format" {
+            nativeBuildInputs = [ pkgs.ruff ];
+          } ''
+            ruff check --no-cache ${./.}
+            touch "$out"
+          '';
+
+          python-types = pkgs.runCommand "nix-adapter-python-types" {
+            nativeBuildInputs = [ pkgs.pyright ];
+          } ''
+            cd ${./.}
+            pyright --pythonpath ${python}/bin/python
+            touch "$out"
+          '';
         }
       );
 
@@ -63,6 +78,8 @@
             packages = [
               self.packages.${system}.adapterPython
               pkgs.python3Packages.flit-core
+              pkgs.pyright
+              pkgs.ruff
             ];
           };
         }

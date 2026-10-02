@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import secrets
 import stat
-from typing import Callable, IO
+from typing import Callable
 
 from .exceptions import Conflict
 

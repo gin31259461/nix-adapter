@@ -8,7 +8,6 @@ import unittest
 from nix_adapter.exceptions import Conflict
 from nix_adapter.io import (
     atomic_write,
-    directory_fd,
     ensure_directory,
     read_managed,
     remove_managed_file,
