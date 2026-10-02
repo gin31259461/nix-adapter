@@ -67,7 +67,7 @@ class BaseAdapter:
         paths = self.desired.get("paths")
         if isinstance(paths, dict):
             value = paths.get(key)
-        if value is None:
+        else:
             value = self.desired.get(key)
         if value is None and default is not None:
             value = default

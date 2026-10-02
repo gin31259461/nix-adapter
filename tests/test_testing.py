@@ -22,7 +22,7 @@ class TestingTests(unittest.TestCase):
         )
         res = fake.run("echo", "hi")
         self.assertEqual(res.stdout, "hi\n")
-        self.assertEqual(fake.calls, [["echo", "hi"]])
+        self.assertEqual(fake.calls, [("echo", "hi")])
 
         with self.assertRaises(subprocess.CalledProcessError):
             fake.run("fail")

@@ -25,8 +25,7 @@ class Native:
         )
         self.timeout = timeout
 
-    @staticmethod
-    def available(command: str) -> bool:
+    def available(self, command: str) -> bool:
         return os.access("/usr/bin/" + command, os.X_OK)
 
     @staticmethod
